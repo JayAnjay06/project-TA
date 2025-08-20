@@ -5,109 +5,70 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DataMangrove;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class DataMangroveController extends Controller
 {
     public function index()
     {
-        $dataMangroves = DataMangrove::with(['lokasi', 'jenis', 'user'])->get();  
-        return response()->json($dataMangroves);
+        $data = DataMangrove::with('lokasi')->get();
+        return response()->json($data);
     }
 
     public function show($id)
     {
-        $dataMangrove = DataMangrove::with(['lokasi', 'jenis', 'user'])->find($id); 
-
-        if (!$dataMangrove) {
-            return response()->json(['message' => 'Data Mangrove not found'], 404);  
-        }
-
-        return response()->json($dataMangrove);  
+        $data = DataMangrove::with('lokasi')->find($id);
+        if (!$data) return response()->json(['message'=>'Data mangrove tidak ditemukan'],404);
+        return response()->json($data);
     }
 
     public function store(Request $request)
     {
-        // Validasi input
-        $validator = Validator::make($request->all(), [
-            'lokasi_id' => 'required|exists:lokasis,lokasi_id',  
-            'jenis_id' => 'required|exists:jenis_mangroves,jenis_id', 
-            'kerapatan' => 'required|integer',
-            'tinggi_rata2' => 'required|numeric',
-            'diameter_rata2' => 'required|numeric',
-            'kondisi' => 'required|in:baik,sedang,buruk',
-            'tanggal_pengamatan' => 'required|date',
-            'user_id' => 'required|exists:users,id',  
+        if ($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
+
+        $request->validate([
+            'lokasi_id'=>'required|exists:lokasis,lokasi_id',
+            'kerapatan'=>'required|integer',
+            'tinggi_rata2'=>'required|numeric',
+            'diameter_rata2'=>'required|numeric',
+            'kondisi'=>'required|in:baik,sedang,buruk',
+            'tanggal_pengamatan'=>'required|date'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400); 
-        }
-
-        // Menyimpan data mangrove
-        $dataMangrove = DataMangrove::create([
-            'lokasi_id' => $request->lokasi_id,
-            'jenis_id' => $request->jenis_id,
-            'kerapatan' => $request->kerapatan,
-            'tinggi_rata2' => $request->tinggi_rata2,
-            'diameter_rata2' => $request->diameter_rata2,
-            'kondisi' => $request->kondisi,
-            'tanggal_pengamatan' => $request->tanggal_pengamatan,
-            'user_id' => $request->user_id,
-        ]);
-
-        return response()->json([
-            'message' => 'Data Mangrove created successfully',
-            'dataMangrove' => $dataMangrove
-        ]);
+        $data = DataMangrove::create($request->all());
+        return response()->json(['message'=>'Data mangrove berhasil dibuat','data'=>$data]);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request,$id)
     {
-        $dataMangrove = DataMangrove::find($id);
+        if ($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if (!$dataMangrove) {
-            return response()->json(['message' => 'Data Mangrove not found'], 404);  
-        }
+        $data = DataMangrove::find($id);
+        if (!$data) return response()->json(['message'=>'Data mangrove tidak ditemukan'],404);
 
-        $validator = Validator::make($request->all(), [
-            'lokasi_id' => 'nullable|exists:lokasis,lokasi_id',
-            'jenis_id' => 'nullable|exists:jenis_mangroves,jenis_id',
-            'kerapatan' => 'nullable|integer',
-            'tinggi_rata2' => 'nullable|numeric',
-            'diameter_rata2' => 'nullable|numeric',
-            'kondisi' => 'nullable|in:baik,sedang,buruk',
-            'tanggal_pengamatan' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
+        $request->validate([
+            'lokasi_id'=>'sometimes|exists:lokasis,lokasi_id',
+            'kerapatan'=>'sometimes|integer',
+            'tinggi_rata2'=>'sometimes|numeric',
+            'diameter_rata2'=>'sometimes|numeric',
+            'kondisi'=>'sometimes|in:baik,sedang,buruk',
+            'tanggal_pengamatan'=>'sometimes|date'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);  
-        }
-
-        $dataMangrove->update($request->only([
-            'lokasi_id', 'jenis_id', 'kerapatan', 'tinggi_rata2', 
-            'diameter_rata2', 'kondisi', 'tanggal_pengamatan', 'user_id'
-        ]));
-
-        return response()->json([
-            'message' => 'Data Mangrove updated successfully',
-            'dataMangrove' => $dataMangrove
-        ]);
+        $data->update($request->all());
+        return response()->json(['message'=>'Data mangrove berhasil diperbarui','data'=>$data]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request,$id)
     {
-        $dataMangrove = DataMangrove::find($id);  
+        if ($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if (!$dataMangrove) {
-            return response()->json(['message' => 'Data Mangrove not found'], 404);  
-        }
+        $data = DataMangrove::find($id);
+        if (!$data) return response()->json(['message'=>'Data mangrove tidak ditemukan'],404);
 
-        $dataMangrove->delete();
-
-        return response()->json([
-            'message' => 'Data Mangrove deleted successfully'
-        ]);
+        $data->delete();
+        return response()->json(['message'=>'Data mangrove berhasil dihapus']);
     }
 }

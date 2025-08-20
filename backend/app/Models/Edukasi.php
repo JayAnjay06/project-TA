@@ -9,13 +9,12 @@ class Edukasi extends Model
 {
     use HasFactory;
 
-    protected $table = 'edukasis'; 
     protected $primaryKey = 'edukasi_id';
 
     protected $fillable = [
-        'judul', 
-        'konten', 
-        'jenis_media', 
+        'judul',
+        'konten',
+        'jenis_media',
         'url'
     ];
 }

@@ -5,98 +5,91 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Lokasi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class LokasiController extends Controller
 {
     public function index()
     {
-        $lokasis = Lokasi::all();
-        return response()->json($lokasis);
+        $lokasi = Lokasi::all();
+        return response()->json($lokasi);
     }
 
     public function show($id)
     {
         $lokasi = Lokasi::find($id);
-
         if (!$lokasi) {
-            return response()->json(['message' => 'Lokasi not found'], 404);
+            return response()->json(['message' => 'Lokasi tidak ditemukan'], 404);
         }
-
         return response()->json($lokasi);
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
             'nama_lokasi' => 'required|string',
-            'koordinat' => 'required|string',  
+            'koordinat' => 'required|string',
             'luas_area' => 'required|numeric',
             'deskripsi' => 'nullable|string',
-            'tanggal_input' => 'required|date',
-            'user_id' => 'required|exists:users,id',  
+            'tanggal_input' => 'nullable|date'
         ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
 
         $lokasi = Lokasi::create([
             'nama_lokasi' => $request->nama_lokasi,
-            'koordinat' => $request->koordinat, 
+            'koordinat' => $request->koordinat,
             'luas_area' => $request->luas_area,
             'deskripsi' => $request->deskripsi,
-            'tanggal_input' => $request->tanggal_input,
-            'user_id' => $request->user_id,
+            'tanggal_input' => $request->tanggal_input ?? now()
         ]);
 
-        return response()->json([
-            'message' => 'Lokasi created successfully',
-            'lokasi' => $lokasi
-        ]);
+        return response()->json(['message' => 'Lokasi berhasil dibuat', 'lokasi' => $lokasi]);
     }
 
     public function update(Request $request, $id)
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $lokasi = Lokasi::find($id);
-
         if (!$lokasi) {
-            return response()->json(['message' => 'Lokasi not found'], 404);
+            return response()->json(['message' => 'Lokasi tidak ditemukan'], 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'nama_lokasi' => 'nullable|string',
-            'koordinat' => 'nullable|string', 
-            'luas_area' => 'nullable|numeric',
+        $request->validate([
+            'nama_lokasi' => 'sometimes|required|string',
+            'koordinat' => 'sometimes|required|string',
+            'luas_area' => 'sometimes|required|numeric',
             'deskripsi' => 'nullable|string',
-            'tanggal_input' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
+            'tanggal_input' => 'nullable|date'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
-
-        $lokasi->update($request->only(['nama_lokasi', 'koordinat', 'luas_area', 'deskripsi', 'tanggal_input', 'user_id']));
-
-        return response()->json([
-            'message' => 'Lokasi updated successfully',
-            'lokasi' => $lokasi
+        $lokasi->update([
+            'nama_lokasi' => $request->nama_lokasi ?? $lokasi->nama_lokasi,
+            'koordinat' => $request->koordinat ?? $lokasi->koordinat,
+            'luas_area' => $request->luas_area ?? $lokasi->luas_area,
+            'deskripsi' => $request->deskripsi ?? $lokasi->deskripsi,
+            'tanggal_input' => $request->tanggal_input ?? $lokasi->tanggal_input,
         ]);
+
+        return response()->json(['message' => 'Lokasi berhasil diperbarui', 'lokasi' => $lokasi]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $lokasi = Lokasi::find($id);
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
+        $lokasi = Lokasi::find($id);
         if (!$lokasi) {
-            return response()->json(['message' => 'Lokasi not found'], 404);
+            return response()->json(['message' => 'Lokasi tidak ditemukan'], 404);
         }
 
         $lokasi->delete();
-
-        return response()->json([
-            'message' => 'Lokasi deleted successfully'
-        ]);
+        return response()->json(['message' => 'Lokasi berhasil dihapus']);
     }
 }

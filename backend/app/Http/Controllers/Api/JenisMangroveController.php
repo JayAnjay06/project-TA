@@ -6,108 +6,122 @@ use App\Http\Controllers\Controller;
 use App\Models\JenisMangrove;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 
 class JenisMangroveController extends Controller
 {
     public function index()
     {
-        $jenisMangroves = JenisMangrove::all();
-        return response()->json($jenisMangroves);
-    }
-
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'nama_ilmiah' => 'required|string|max:255',
-            'nama_lokal' => 'required|string|max:255',
-            'deskripsi' => 'nullable|string',
-            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
-
-        if ($request->hasFile('gambar')) {
-            $imagePath = $request->file('gambar')->store('images', 'public'); 
-        } else {
-            $imagePath = null;  
-        }
-
-        $jenisMangrove = JenisMangrove::create([
-            'nama_ilmiah' => $request->nama_ilmiah,
-            'nama_lokal' => $request->nama_lokal,
-            'deskripsi' => $request->deskripsi,
-            'gambar' => $imagePath,  
-        ]);
-
-        return response()->json($jenisMangrove, 201);
+        $jenis = JenisMangrove::all()->map(function($item) {
+            if ($item->gambar) {
+                $item->gambar = url('storage/' . $item->gambar);
+            }
+            return $item;
+        });
+        return response()->json($jenis);
     }
 
     public function show($id)
     {
-        $jenisMangrove = JenisMangrove::find($id);
-
-        if (!$jenisMangrove) {
-            return response()->json(['message' => 'Jenis Mangrove not found'], 404);
+        $jenis = JenisMangrove::find($id);
+        if (!$jenis) {
+            return response()->json(['message' => 'Jenis mangrove tidak ditemukan'], 404);
         }
 
-        return response()->json($jenisMangrove);
+        if ($jenis->gambar) {
+            $jenis->gambar = url('storage/' . $jenis->gambar);
+        }
+
+        return response()->json($jenis);
+    }
+
+    public function store(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'nama_ilmiah' => 'required|string',
+            'nama_lokal' => 'required|string',
+            'deskripsi' => 'nullable|string',
+            'gambar' => 'nullable|image|max:2048' 
+        ]);
+
+        $gambarPath = null;
+        if ($request->hasFile('gambar')) {
+            $gambarPath = $request->file('gambar')->store('jenis_mangrove', 'public');
+        }
+
+        $jenis = JenisMangrove::create([
+            'nama_ilmiah' => $request->nama_ilmiah,
+            'nama_lokal' => $request->nama_lokal,
+            'deskripsi' => $request->deskripsi,
+            'gambar' => $gambarPath
+        ]);
+
+        if ($jenis->gambar) {
+            $jenis->gambar = url('storage/' . $jenis->gambar);
+        }
+
+        return response()->json(['message' => 'Jenis mangrove berhasil dibuat', 'jenis' => $jenis]);
     }
 
     public function update(Request $request, $id)
     {
-        $jenisMangrove = JenisMangrove::find($id);
-
-        if (!$jenisMangrove) {
-            return response()->json(['message' => 'Jenis Mangrove not found'], 404);
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            'nama_ilmiah' => 'required|string|max:255',
-            'nama_lokal' => 'required|string|max:255',
+        $jenis = JenisMangrove::find($id);
+        if (!$jenis) {
+            return response()->json(['message' => 'Jenis mangrove tidak ditemukan'], 404);
+        }
+
+        $request->validate([
+            'nama_ilmiah' => 'sometimes|required|string',
+            'nama_lokal' => 'sometimes|required|string',
             'deskripsi' => 'nullable|string',
-            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', 
+            'gambar' => 'nullable|image|max:2048'
         ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
 
         if ($request->hasFile('gambar')) {
-            if ($jenisMangrove->gambar) {
-                Storage::disk('public')->delete($jenisMangrove->gambar);  
+            if ($jenis->gambar && Storage::disk('public')->exists($jenis->gambar)) {
+                Storage::disk('public')->delete($jenis->gambar);
             }
 
-            $imagePath = $request->file('gambar')->store('images', 'public');
-        } else {
-            $imagePath = $jenisMangrove->gambar;
+            $gambarPath = $request->file('gambar')->store('jenis_mangrove', 'public');
+            $jenis->gambar = $gambarPath;
         }
 
-        $jenisMangrove->update([
-            'nama_ilmiah' => $request->nama_ilmiah,
-            'nama_lokal' => $request->nama_lokal,
-            'deskripsi' => $request->deskripsi,
-            'gambar' => $imagePath, 
-        ]);
+        $jenis->nama_ilmiah = $request->nama_ilmiah ?? $jenis->nama_ilmiah;
+        $jenis->nama_lokal = $request->nama_lokal ?? $jenis->nama_lokal;
+        $jenis->deskripsi = $request->deskripsi ?? $jenis->deskripsi;
+        $jenis->save();
 
-        return response()->json($jenisMangrove);
+        if ($jenis->gambar) {
+            $jenis->gambar = url('storage/' . $jenis->gambar);
+        }
+
+        return response()->json(['message' => 'Jenis mangrove berhasil diperbarui', 'jenis' => $jenis]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $jenisMangrove = JenisMangrove::find($id);
-
-        if (!$jenisMangrove) {
-            return response()->json(['message' => 'Jenis Mangrove not found'], 404);
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($jenisMangrove->gambar) {
-            Storage::disk('public')->delete($jenisMangrove->gambar);
+        $jenis = JenisMangrove::find($id);
+        if (!$jenis) {
+            return response()->json(['message' => 'Jenis mangrove tidak ditemukan'], 404);
         }
 
-        $jenisMangrove->delete();
-        return response()->json(['message' => 'Jenis Mangrove deleted successfully']);
+        if ($jenis->gambar && Storage::disk('public')->exists($jenis->gambar)) {
+            Storage::disk('public')->delete($jenis->gambar);
+        }
+
+        $jenis->delete();
+
+        return response()->json(['message' => 'Jenis mangrove berhasil dihapus']);
     }
 }

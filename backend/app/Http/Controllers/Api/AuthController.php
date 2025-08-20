@@ -3,126 +3,68 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|string',
-            'password' => 'required|string',
+        $request->validate([
+            'username' => 'required|unique:users,username',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'nama_lengkap' => 'required',
+            'role' => 'required|in:admin,masyarakat'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
+        $user = User::create([
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'nama_lengkap' => $request->nama_lengkap,
+            'role' => $request->role
+        ]);
+
+        return response()->json(['message' => 'User registered', 'user' => $user]);
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string', 
+            'password' => 'required|string',
+        ]);
 
         $user = User::where('username', $request->username)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([
+                'message' => 'Username atau password salah!'
+            ], 401);
         }
+        $user->tokens()->delete();
 
-        $token = $user->createToken('MMIC-Token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token,
-            'user' => $user
-        ]);
-    }
-
-    public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|string|unique:users',
-            'password' => 'required|string|min:8',
-            'nama_lengkap' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'role' => 'required|in:admin,masyarakat', 
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
-
-        $user = User::create([
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
-            'nama_lengkap' => $request->nama_lengkap,
-            'email' => $request->email,
-            'role' => $request->role,
-        ]);
-
-        $token = $user->createToken('MMIC-Token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'User registered successfully',
-            'token' => $token,
-            'user' => $user
-        ]);
-    }
-
-    public function show(Request $request)
-    {
-        return response()->json([
-            'user' => $request->user()
-        ]);
-    }
-
-    public function update(Request $request)
-    {
-        $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'username' => 'nullable|string|unique:users,username,' . $user->id,
-            'password' => 'nullable|string|min:8',
-            'nama_lengkap' => 'nullable|string',
-            'email' => 'nullable|email|unique:users,email,' . $user->id,
-            'role' => 'nullable|in:admin,masyarakat',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);
-        }
-
-        if ($request->has('username')) {
-            $user->username = $request->username;
-        }
-        if ($request->has('password')) {
-            $user->password = Hash::make($request->password);
-        }
-        if ($request->has('nama_lengkap')) {
-            $user->nama_lengkap = $request->nama_lengkap;
-        }
-        if ($request->has('email')) {
-            $user->email = $request->email;
-        }
-        if ($request->has('role')) {
-            $user->role = $request->role;
-        }
-
-        $user->save();
-
-        return response()->json([
-            'message' => 'User updated successfully',
-            'user' => $user
-        ]);
+            'message' => 'Login berhasil',
+            'token'   => $token,
+            'user'    => $user
+        ], 200);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->tokens->each(function ($token) {
-            $token->delete();
-        });
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['message' => 'Logged out']);
+    }
 
+    public function profile(Request $request)
+    {
         return response()->json([
-            'message' => 'Logout successful'
+            'user' => $request->user()
         ]);
     }
 }

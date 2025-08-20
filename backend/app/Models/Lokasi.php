@@ -9,7 +9,6 @@ class Lokasi extends Model
 {
     use HasFactory;
 
-    protected $table = 'lokasis';
     protected $primaryKey = 'lokasi_id';
 
     protected $fillable = [
@@ -17,11 +16,6 @@ class Lokasi extends Model
         'koordinat',
         'luas_area',
         'deskripsi',
-        'tanggal_input',
-        'user_id',
-    ];
-
-    protected $casts = [
-        'koordinat' => 'string',
+        'tanggal_input'
     ];
 }

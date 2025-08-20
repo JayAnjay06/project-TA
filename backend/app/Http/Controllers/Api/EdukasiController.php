@@ -5,93 +5,66 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Edukasi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class EdukasiController extends Controller
 {
     public function index()
     {
-        $edukasis = Edukasi::all(); 
-        return response()->json($edukasis);
+        $data = Edukasi::all();
+        return response()->json($data);
     }
 
     public function show($id)
     {
-        $edukasi = Edukasi::find($id);  
-        if (!$edukasi) {
-            return response()->json(['message' => 'Edukasi not found'], 404);  
-        }
-
-        return response()->json($edukasi);  
+        $data = Edukasi::find($id);
+        if(!$data) return response()->json(['message'=>'Edukasi tidak ditemukan'],404);
+        return response()->json($data);
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'judul' => 'required|string',
-            'konten' => 'required|string',
-            'jenis_media' => 'required|in:artikel,video,gambar,game',  
-            'url' => 'nullable|url',  
+        if($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
+
+        $request->validate([
+            'judul'=>'required|string',
+            'konten'=>'required|string',
+            'jenis_media'=>'required|in:artikel,video,gambar,game',
+            'url'=>'nullable|string'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400);  
-        }
-
-        $edukasi = Edukasi::create([
-            'judul' => $request->judul,
-            'konten' => $request->konten,
-            'jenis_media' => $request->jenis_media,
-            'url' => $request->url,
-        ]);
-
-        return response()->json([
-            'message' => 'Edukasi created successfully',
-            'edukasi' => $edukasi
-        ]);
+        $data = Edukasi::create($request->all());
+        return response()->json(['message'=>'Edukasi berhasil dibuat','data'=>$data]);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request,$id)
     {
-        $edukasi = Edukasi::find($id);  
+        if($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if (!$edukasi) {
-            return response()->json(['message' => 'Edukasi not found'], 404);  
-        }
+        $data = Edukasi::find($id);
+        if(!$data) return response()->json(['message'=>'Edukasi tidak ditemukan'],404);
 
-        $validator = Validator::make($request->all(), [
-            'judul' => 'nullable|string',
-            'konten' => 'nullable|string',
-            'jenis_media' => 'nullable|in:artikel,video,gambar,game',
-            'url' => 'nullable|url',
+        $request->validate([
+            'judul'=>'sometimes|string',
+            'konten'=>'sometimes|string',
+            'jenis_media'=>'sometimes|in:artikel,video,gambar,game',
+            'url'=>'nullable|string'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 400); 
-        }
-
-        $edukasi->update($request->only([
-            'judul', 'konten', 'jenis_media', 'url'
-        ]));
-
-        return response()->json([
-            'message' => 'Edukasi updated successfully',
-            'edukasi' => $edukasi
-        ]);
+        $data->update($request->all());
+        return response()->json(['message'=>'Edukasi berhasil diperbarui','data'=>$data]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request,$id)
     {
-        $edukasi = Edukasi::find($id); 
+        if($request->user()->role !== 'admin') 
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if (!$edukasi) {
-            return response()->json(['message' => 'Edukasi not found'], 404);  
-        }
+        $data = Edukasi::find($id);
+        if(!$data) return response()->json(['message'=>'Edukasi tidak ditemukan'],404);
 
-        $edukasi->delete();
-
-        return response()->json([
-            'message' => 'Edukasi deleted successfully'
-        ]);
+        $data->delete();
+        return response()->json(['message'=>'Edukasi berhasil dihapus']);
     }
 }

@@ -9,17 +9,13 @@ class JenisMangrove extends Model
 {
     use HasFactory;
 
-    protected $table = 'jenis_mangroves';
-    protected $primaryKey = 'jenis_id'; 
+    // protected $table = 'jenis_mangroves';
+    protected $primaryKey = 'jenis_id';
 
     protected $fillable = [
         'nama_ilmiah',
         'nama_lokal',
         'deskripsi',
-        'gambar',
-    ];
-
-    protected $casts = [
-        'gambar' => 'string',
+        'gambar'
     ];
 }
