@@ -83,3 +83,7 @@ Route::middleware('auth:sanctum')->group(function(){
     Route::put('/laporan/{id}', [LaporanController::class,'update']);
     Route::delete('/laporan/{id}', [LaporanController::class,'destroy']);
 });
+
+use App\Http\Controllers\Api\ChatbotController;
+
+Route::middleware('auth:sanctum')->post('/chatbot', [ChatbotController::class, 'ask']);
